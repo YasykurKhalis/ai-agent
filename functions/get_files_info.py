@@ -1,10 +1,10 @@
 import os
+from config import MAX_CHARS
+from functions.working_dir_abs import working_dir_abs
 
 def get_files_info(working_directory: str, directory: str = ".") -> str:
-    working_dir_abs = os.path.abspath("calculator")
     target_dir = os.path.normpath(os.path.join(working_dir_abs, directory))
 
-    # Will be True or False
     valid_target_dir = os.path.commonpath([working_dir_abs, target_dir]) == working_dir_abs
 
     if not valid_target_dir:
@@ -18,3 +18,21 @@ def get_files_info(working_directory: str, directory: str = ".") -> str:
     print("Result for current directory:")
     for item in os.listdir(target_dir):
         print(f'- {item}: file_size={os.path.getsize(os.path.join(target_dir, item))} bytes, is_dir={os.path.isdir(os.path.join(target_dir, item))}')
+
+def get_file_content(working_directory: str, file_path: str) -> str:
+    target_file = os.path.normpath(os.path.join(working_dir_abs, file_path))
+
+    valid_target_file = os.path.commonpath([working_dir_abs, target_file]) == working_dir_abs
+
+    if not valid_target_file:
+        return print(f'Error: Cannot read "{file_path}" as it is outside the permitted working directory')
+    if not os.path.isfile(target_file):
+        return print(f'Error: File not found or is not a regular file: "{file_path}"')
+    
+    f = open(target_file,"r")
+    content = f.read(MAX_CHARS)
+
+    if f.read(1):
+        content += f'[...File "{file_path}" truncated at {MAX_CHARS} characters]'
+
+    return content
