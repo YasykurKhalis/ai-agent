@@ -4,7 +4,7 @@ from dotenv import load_dotenv
 import argparse
 from prompts import system_prompt
 from call_function import available_functions, call_function
-import json
+import sys
 
 def main():
     print("Hello from ai-agent!")
@@ -24,37 +24,47 @@ def main():
     parser.add_argument("--verbose", action="store_true", help="Enable verbose output")
     args = parser.parse_args()
 
+    if args.verbose:
+        print(f"User prompt: {args.user_prompt}")
+
     messages = [
         {"role": "system", "content": system_prompt},
         {"role": "user","content": args.user_prompt}
     ]
 
-    response = client.chat.completions.create(
-        model="openrouter/free",
-        messages=messages,
-        # temperature=0,
-        tools=available_functions
-    )
+    for _ in range(20):
+        response = client.chat.completions.create(
+            model="openrouter/free",
+            messages=messages,
+            # temperature=0,
+            tools=available_functions
+        )
 
-    message = response.choices[0].message
-    if message.tool_calls:
-        for tool_call in message.tool_calls:
-            # print(f"Calling function: {tool_call.function.name}({function_args})")
-            result_message = call_function(tool_call, args.verbose)
-            if not result_message:
-                raise Exception(f"Empty result from {tool_call.function.name}")
-            if args.verbose:
-                print(f"-> {result_message['content']}")
+        message = response.choices[0].message
+        messages.append(message)
+        if message.tool_calls:
+            for tool_call in message.tool_calls:
+                # print(f"Calling function: {tool_call.function.name}({function_args})")
+                result_message = call_function(tool_call, args.verbose)
+                if not result_message:
+                    raise Exception(f"Empty result from {tool_call.function.name}")
+                if args.verbose:
+                    print(f"-> {result_message['content']}")
+                messages.append(result_message)
 
-    if response.usage == None:
-        raise RuntimeError("Response's usage property can't be used")
+        if response.usage == None:
+            raise RuntimeError("Response's usage property can't be used")
 
-    if args.verbose:
-        print(f"User prompt: {args.user_prompt}")
-        print(f"Prompt tokens: {response.usage.prompt_tokens}")
-        print(f"Response tokens: {response.usage.completion_tokens}")
-    
-    print(message.content)
+        if args.verbose:
+            print(f"Prompt tokens: {response.usage.prompt_tokens}")
+            print(f"Response tokens: {response.usage.completion_tokens}")
+
+        if not message.tool_calls:
+            print("Final response:")
+            print(message.content)
+            return
+    print("this dumb model cant find answer after 20 iterations of function calls")
+    sys.exit(1)
 
 
 if __name__ == "__main__":
